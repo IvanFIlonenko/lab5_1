@@ -7,22 +7,23 @@ import akka.actor.Props;
 import akka.http.javadsl.ConnectHttp;
 import akka.http.javadsl.Http;
 import akka.http.javadsl.ServerBinding;
-import akka.http.javadsl.model.*;
+import akka.http.javadsl.model.HttpMethods;
+import akka.http.javadsl.model.HttpRequest;
+import akka.http.javadsl.model.HttpResponse;
+import akka.http.javadsl.model.StatusCodes;
+import akka.japi.Pair;
 import akka.pattern.Patterns;
 import akka.stream.ActorMaterializer;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Keep;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
-import akka.japi.Pair;
 import akka.util.ByteString;
+import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Response;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
-import org.asynchttpclient.*;
 import scala.concurrent.duration.Duration;
-
-import static org.asynchttpclient.Dsl.asyncHttpClient;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -31,11 +32,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.asynchttpclient.Dsl.asyncHttpClient;
+
 public class Main {
     private static ActorRef controlActor;
 
     public static void main(String[] args) throws IOException {
-        System.out.println("start!");
+        System.out.println("start app!");
         ActorSystem system = ActorSystem.create("routes");
         final Http http = Http.get(system);
         controlActor = system.actorOf(Props.create(Storage.class));
