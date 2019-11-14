@@ -99,7 +99,7 @@ public class Main {
                                                 }).map(sum -> {
                                             Patterns.ask(controlActor, new PutDataMsg(new javafx.util.Pair<>(data.first(), new javafx.util.Pair<>(data.second(), sum))), 5000);
                                             Double middleValue = (double) sum / (double) count;
-                                            return HttpResponse.create().withEntity(ByteString.fromString(middleValue.toString()));
+                                            return HttpResponse.create().withEntity(ByteString.fromString(middleValue.toString() + " milliseconds"));
                                         });
                                 CompletionStage<HttpResponse> result = source.via(flow).toMat(Sink.last(), Keep.right()).run(materializer);
                                 return result.toCompletableFuture().get();
