@@ -64,16 +64,17 @@ public class Main {
                                         .map(pair -> new Pair<>(HttpRequest.create().
                                                 withUri(pair.first()), pair.second())).
                                                 mapAsync(1, pair -> {
-                                                    Sink<CompletionStage<Long>, CompletionStage<Integer>> fold = Sink.fold(0,
-                                                            (accumulator, element) -> {
-                                                                int responseTime = (int) (0 + element.toCompletableFuture().get());
-                                                                return accumulator + responseTime;
-                                                            });
-                                                    Duration timeout = java.time.Duration.ofSeconds(5);
-                                                    CompletableFuture<Object> getResult = Patterns.
-                                                            ask(controlActor, new GetDataMsg(new javafx.util.Pair<>(data.first(), data.second())), timeout).toCompletableFuture().
-                                                            thenCompose(r -> {
-                                                                if ((int)r == -1){
+                                                    return Patterns.ask(controlActor, new GetDataMsg(new javafx.util.Pair<>(data.first(), data.second())), Duration.ofSeconds(5)).
+                                                            thenCompose(r ->
+                                                            {
+                                                                if ((int)r != -1) {
+                                                                    return CompletableFuture.completedFuture((int)r);
+                                                                } else {
+                                                                    Sink<CompletionStage<Long>, CompletionStage<Integer>> fold = Sink.fold(0,
+                                                                            (accumulator, element) -> {
+                                                                                int responseTime = (int) (0 + element.toCompletableFuture().get());
+                                                                                return accumulator + responseTime;
+                                                                            });
                                                                     return Source.from(Collections.singleton(pair)).
                                                                             toMat(Flow.<Pair<HttpRequest, Integer>>create().
                                                                                     mapConcat(p -> Collections.nCopies(p.second(), p.first())).
@@ -91,15 +92,12 @@ public class Main {
                                                                                                         }));
                                                                                     })
                                                                                     .toMat(fold, Keep.right()), Keep.right()).run(materializer);
-                                                                } else {
-                                                                    return;
                                                                 }
-                                                            });
-                                                }).map(sum -> {
-                                            Patterns.ask(controlActor, new PutDataMsg(new javafx.util.Pair<>(data.first(), new javafx.util.Pair<>(data.second(), sum))), 5000);
-                                            Double middleValue = (double) sum / (double) count;
-                                            return HttpResponse.create().withEntity(ByteString.fromString(middleValue.toString() + " milliseconds"));
-                                        });
+                                                            }).thenCompose(sum -> {
+                                                        Patterns.ask(controlActor, new PutDataMsg(new javafx.util.Pair<>(data.first(), new javafx.util.Pair<>(data.second(), sum))), 5000);
+                                                        Double middleValue = (double) sum / (double) count;
+                                                        return HttpResponse.create().withEntity(ByteString.fromString(middleValue.toString() + " milliseconds"));
+                                        );
                                 CompletionStage<HttpResponse> result = source.via(flow).toMat(Sink.last(), Keep.right()).run(materializer);
                                 return result.toCompletableFuture().get();
                             } catch (Exception e) {
