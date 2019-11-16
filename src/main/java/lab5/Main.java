@@ -92,7 +92,6 @@ public class Main {
                                                                                                         }));
                                                                                     })
                                                                                     .toMat(fold, Keep.right()), Keep.right()).run(materializer);
-                                                                }
                                                             }).thenCompose(sum -> {
                                                         Patterns.ask(controlActor, new PutDataMsg(new javafx.util.Pair<>(data.first(), new javafx.util.Pair<>(data.second(), sum))), 5000);
                                                         Double middleValue = (double) sum / (double) count;
