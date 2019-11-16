@@ -65,9 +65,9 @@ public class Main {
                                         .map(pair -> new Pair<>(HttpRequest.create().
                                                 withUri(pair.first()), pair.second())).
                                                 mapAsync(1, pair -> {
-                                                    Sink<Long, CompletionStage<Integer>> fold = Sink.fold(0,
+                                                    Sink<CompletionStage<Long>, CompletionStage<Integer>> fold = Sink.fold(0,
                                                             (accumulator, element) -> {
-                                                                int responseTime = (int) (0 + element);
+                                                                int responseTime = (int) (0 + element.toCompletableFuture().get());
                                                                 return accumulator + responseTime;
                                                             });
                                                     Future<Object> getResult = Patterns.
@@ -80,23 +80,17 @@ public class Main {
                                                             toMat(Flow.<Pair<HttpRequest, Integer>>create().
                                                                     mapConcat(p -> Collections.nCopies(p.second(), p.first())).
                                                                     mapAsync(1, requestOut -> {
-                                                                        CompletableFuture<Long> future = CompletableFuture.supplyAsync(() ->
+                                                                        return CompletableFuture.supplyAsync(() ->
                                                                                 System.currentTimeMillis())
                                                                                 .thenCompose(start ->
                                                                                         CompletableFuture.supplyAsync(() -> {
-                                                                                            ListenableFuture<Response> whenResponse = asyncHttpClient().
+                                                                                            CompletionStage<Long> f = asyncHttpClient().
                                                                                                     prepareGet(requestOut.getUri().toString()).execute().
                                                                                                     toCompletableFuture().
                                                                                                     thenCompose(r ->
-                                                                                                            );
-                                                                                            try {
-                                                                                                Response response = whenResponse.get();
-                                                                                            } catch (InterruptedException | ExecutionException e) {
-                                                                                                System.out.println(e);
-                                                                                            }
-                                                                                            return System.currentTimeMillis() - start;
+                                                                                                            CompletableFuture.completedFuture(System.currentTimeMillis() - start));
+                                                                                            return f;
                                                                                         }));
-                                                                        return future;
                                                                     })
                                                                     .toMat(fold, Keep.right()), Keep.right()).run(materializer);
                                                 }).map(sum -> {
