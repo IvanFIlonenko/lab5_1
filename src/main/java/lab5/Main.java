@@ -85,7 +85,10 @@ public class Main {
                                                                                 .thenCompose(start ->
                                                                                         CompletableFuture.supplyAsync(() -> {
                                                                                             ListenableFuture<Response> whenResponse = asyncHttpClient().
-                                                                                                    prepareGet(requestOut.getUri().toString()).execute();
+                                                                                                    prepareGet(requestOut.getUri().toString()).execute().
+                                                                                                    toCompletableFuture().
+                                                                                                    thenCompose(r ->
+                                                                                                            );
                                                                                             try {
                                                                                                 Response response = whenResponse.get();
                                                                                             } catch (InterruptedException | ExecutionException e) {
