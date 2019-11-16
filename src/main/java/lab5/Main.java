@@ -23,9 +23,8 @@ import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Response;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
-
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -70,29 +69,32 @@ public class Main {
                                                                 int responseTime = (int) (0 + element.toCompletableFuture().get());
                                                                 return accumulator + responseTime;
                                                             });
-                                                    Future<Object> getResult = Patterns.
-                                                            ask(controlActor, new GetDataMsg(new javafx.util.Pair<>(data.first(), data.second())), 5000);
-                                                    int value = (int) Await.result(getResult, Duration.create(10, TimeUnit.SECONDS));
-                                                    if (value != -1) {
-                                                        return CompletableFuture.completedFuture(value);
-                                                    }
-                                                    return Source.from(Collections.singleton(pair)).
-                                                            toMat(Flow.<Pair<HttpRequest, Integer>>create().
-                                                                    mapConcat(p -> Collections.nCopies(p.second(), p.first())).
-                                                                    mapAsync(1, requestOut -> {
-                                                                        return CompletableFuture.supplyAsync(() ->
-                                                                                System.currentTimeMillis())
-                                                                                .thenCompose(start ->
-                                                                                        CompletableFuture.supplyAsync(() -> {
-                                                                                            CompletionStage<Long> f = asyncHttpClient().
-                                                                                                    prepareGet(requestOut.getUri().toString()).execute().
-                                                                                                    toCompletableFuture().
-                                                                                                    thenCompose(r ->
-                                                                                                            CompletableFuture.completedFuture(System.currentTimeMillis() - start));
-                                                                                            return f;
-                                                                                        }));
-                                                                    })
-                                                                    .toMat(fold, Keep.right()), Keep.right()).run(materializer);
+                                                    Duration timeout = java.time.Duration.ofSeconds(5);
+                                                    CompletableFuture<Object> getResult = Patterns.
+                                                            ask(controlActor, new GetDataMsg(new javafx.util.Pair<>(data.first(), data.second())), timeout).toCompletableFuture().
+                                                            thenCompose(r -> {
+                                                                if ((int)r == -1){
+                                                                    return Source.from(Collections.singleton(pair)).
+                                                                            toMat(Flow.<Pair<HttpRequest, Integer>>create().
+                                                                                    mapConcat(p -> Collections.nCopies(p.second(), p.first())).
+                                                                                    mapAsync(1, requestOut -> {
+                                                                                        return CompletableFuture.supplyAsync(() ->
+                                                                                                System.currentTimeMillis())
+                                                                                                .thenCompose(start ->
+                                                                                                        CompletableFuture.supplyAsync(() -> {
+                                                                                                            CompletionStage<Long> f = asyncHttpClient().
+                                                                                                                    prepareGet(requestOut.getUri().toString()).execute().
+                                                                                                                    toCompletableFuture().
+                                                                                                                    thenCompose(t ->
+                                                                                                                            CompletableFuture.completedFuture(System.currentTimeMillis() - start));
+                                                                                                            return f;
+                                                                                                        }));
+                                                                                    })
+                                                                                    .toMat(fold, Keep.right()), Keep.right()).run(materializer);
+                                                                } else {
+                                                                    return;
+                                                                }
+                                                            });
                                                 }).map(sum -> {
                                             Patterns.ask(controlActor, new PutDataMsg(new javafx.util.Pair<>(data.first(), new javafx.util.Pair<>(data.second(), sum))), 5000);
                                             Double middleValue = (double) sum / (double) count;
